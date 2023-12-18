@@ -1,0 +1,7 @@
+#! /bin/sh -eu
+
+MEDIR=`dirname "$0"`
+
+. ${MEDIR}/../src/Hello.sh
+
+hello "$@"
