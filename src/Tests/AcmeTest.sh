@@ -1,0 +1,10 @@
+oneTimeSetUp ()
+{
+    :
+}
+
+testNothing() {
+    :
+}
+
+. ${SHUNIT2}

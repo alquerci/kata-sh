@@ -1,0 +1,86 @@
+#! /bin/sh -eu
+
+MEDIR=`dirname "$0"`
+ROOTDIR=`realpath "${MEDIR}/.."`
+VENDORDIR="${ROOTDIR}/var/vendor"
+
+main ()
+{
+    installTestFramework
+
+    runTests
+}
+
+findTestFiles ()
+{
+    find "${ROOTDIR}/src" -wholename '*/Tests/*' -name '*Test.sh'
+}
+
+installTestFramework ()
+{
+    packagedir="${VENDORDIR}/shunit2"
+    packageCommit='3334e53047ad143669870a9c223b70a81156533a'
+
+    test -d "$packagedir" || {
+        {
+            git clone \
+                --branch=master \
+                --single-branch \
+                https://github.com/kward/shunit2.git \
+                "$packagedir"
+
+            git \
+                --work-tree="$packagedir" \
+                --git-dir="$packagedir/.git" \
+                reset --hard \
+                "$packageCommit" --
+        } || {
+            rm -rf "$packagedir"
+
+            exit 1
+        }
+    }
+}
+
+runTests ()
+{
+    findTestFiles | while read filepath; do
+        runTest
+    done
+}
+
+runTest ()
+{
+    name=`basename "${filepath}"`
+
+    makeTestEnv "${name}"
+
+    cd `dirname "${filepath}"`
+
+    exitCode=0
+    sh -eu "${name}" || {
+        exitCode=$?
+    }
+
+    rm -r "${TMPDIR}" || :
+
+    return ${exitCode}
+}
+
+makeTestEnv ()
+{
+    export SHUNIT2="${VENDORDIR}/shunit2/shunit2"
+
+    export TMPDIR=`makeTempDirForTestFileName "${1}"`
+
+    export ROOTDIR
+}
+
+makeTempDirForTestFileName ()
+{
+    mkdir -p "${ROOTDIR}/var/tmp" > /dev/null 2>&1
+
+    mktemp -d --suffix="${1}" -p "${ROOTDIR}/var/tmp"
+}
+
+main ${1+"$@"}
