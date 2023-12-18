@@ -4,7 +4,7 @@ oneTimeSetUp ()
 }
 
 testCallHelloWorld() {
-    helloWorld
+    assertEquals 'Hello world' "`helloWorld`"
 }
 
 . ${SHUNIT2}

@@ -1,4 +1,4 @@
 helloWorld ()
 {
-    :
+    echo 'Hello world'
 }
