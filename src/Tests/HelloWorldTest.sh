@@ -1,10 +1,10 @@
 oneTimeSetUp ()
 {
-    :
+    . ../HelloWorld.sh
 }
 
-testNothing() {
-    :
+testCallHelloWorld() {
+    helloWorld
 }
 
 . ${SHUNIT2}
