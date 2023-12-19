@@ -45,20 +45,23 @@ installTestFramework ()
 runTests ()
 {
     findTestFiles | while read filepath; do
-        runTest
+        for testMethod in `findTestMethodsOnFile "${filepath}"`
+        do
+            runTestFile "${filepath}" "${testMethod}"
+        done
     done
 }
 
-runTest ()
+runTestFile ()
 {
-    name=`basename "${filepath}"`
+    name=`basename "${1}"`
 
     makeTestEnv "${name}"
 
-    cd `dirname "${filepath}"`
+    cd `dirname "${1}"`
 
     exitCode=0
-    sh -eu "${name}" || {
+    sh -eu "${name}" -- "${2}"|| {
         exitCode=$?
     }
 
@@ -81,6 +84,11 @@ makeTempDirForTestFileName ()
     mkdir -p "${ROOTDIR}/var/tmp" > /dev/null 2>&1
 
     mktemp -d --suffix="${1}" -p "${ROOTDIR}/var/tmp"
+}
+
+findTestMethodsOnFile ()
+{
+    grep -E '^test[a-zA-Z0-9_]+ *\(\) *(\{?$|\{)' "${1}" | grep -Eo '^test[a-zA-Z0-9_]+'
 }
 
 main ${1+"$@"}
