@@ -19,64 +19,138 @@ findTestFiles ()
 installTestFramework ()
 {
     packagedir="${VENDORDIR}/shunit2"
+    packageRepositoryUrl='https://github.com/kward/shunit2.git'
     packageCommit='3334e53047ad143669870a9c223b70a81156533a'
 
-    test -d "$packagedir" || {
-        {
-            git clone \
-                --branch=master \
-                --single-branch \
-                https://github.com/kward/shunit2.git \
-                "$packagedir"
-
-            git \
-                --work-tree="$packagedir" \
-                --git-dir="$packagedir/.git" \
-                reset --hard \
-                "$packageCommit" --
-        } || {
-            rm -rf "$packagedir"
-
-            exit 1
-        }
-    }
+    installPackage "${packagedir}" "${packageRepositoryUrl}" "${packageCommit}"
 }
 
 runTests ()
 {
+    defineStyle
+    printHeader
+
+    runAllTests
+
+    printFooter
+}
+
+printHeader ()
+{
+    cat <<EOF
+Run tests
+
+EOF
+}
+
+runAllTests ()
+{
     findTestFiles | while read filepath; do
         for testMethod in `findTestMethodsOnFile "${filepath}"`
         do
-            runTestFile "${filepath}" "${testMethod}"
+            runTestFileForMethod "${filepath}" "${testMethod}"
         done
     done
 }
 
-runTestFile ()
+printFooter ()
 {
-    name=`basename "${1}"`
+    cat <<EOF
 
-    makeTestEnv "${name}"
 
-    cd `dirname "${1}"`
+${style_success}SUCCESS${style_reset}
 
-    exitCode=0
-    sh -eu "${name}" -- "${2}"|| {
-        exitCode=$?
-    }
+EOF
+}
 
-    rm -r "${TMPDIR}" || :
+runTestFileForMethod ()
+{
+    r_filepath=${1}
+    r_filename=`basename ${1}`
+    r_method="${2}"
 
-    return ${exitCode}
+    makeTestEnv "${r_filepath}"
+
+    r_testFileReport=`makeTempFileForTestFileName "${r_filename}"`
+
+    if executeTestCase "${r_filepath}" "${r_method}" "${r_testFileReport}"; then
+        r_exitCode=0
+
+        printTestCaseSuccess
+    else
+        r_exitCode=$?
+
+        printTestCaseFailure "${r_filepath}" "${r_testFileReport}"
+    fi
+
+    runTestFileForMethod_removeTempFiles
+
+    return ${r_exitCode}
+}
+
+runTestFileForMethod_removeTempFiles ()
+{
+    rm -r "${TMPDIR}" 2> /dev/null || :
+    rm -r "${r_testFileReport}" 2> /dev/null || :
+}
+
+executeTestCase ()
+{
+    e_filename=`basename ${1}`
+    e_method="${2}"
+    e_output="${3}"
+
+    sh -eu \
+        "${e_filename}" \
+        -- \
+        "${e_method}" \
+        > "${e_output}" 2>&1
+}
+
+printTestCaseSuccess ()
+{
+    echo -n .
+}
+
+printTestCaseFailure ()
+{
+    p_filepath=${1}
+    p_testFileReport=${2}
+
+    printTestCaseFailureProgress
+
+    printTestCaseFailureReport "${p_filepath}" "${p_testFileReport}"
+}
+
+printTestCaseFailureReport ()
+{
+    p_filepath=${1}
+    p_testFileReport=${2}
+
+    echo
+    echo
+    echo "${p_filepath}" | sed "s,${ROOTDIR}/,,"
+
+    cat "${p_testFileReport}"
+}
+
+printTestCaseFailureProgress ()
+{
+    echo -n "${style_failure}F${style_reset}"
 }
 
 makeTestEnv ()
 {
+    m_filename=`basename ${1}`
+    m_directory=`dirname ${1}`
+
     export SHUNIT2="${VENDORDIR}/shunit2/shunit2"
 
-    export TMPDIR=`makeTempDirForTestFileName "${1}"`
+    export TMPDIR=`makeTempDirForTestFileName "${m_filename}"`
 
     export ROOTDIR
+
+    cd "${m_directory}"
 }
 
 makeTempDirForTestFileName ()
@@ -86,9 +160,59 @@ makeTempDirForTestFileName ()
     mktemp -d --suffix="${1}" -p "${ROOTDIR}/var/tmp"
 }
 
+makeTempFileForTestFileName ()
+{
+    mkdir -p "${ROOTDIR}/var/tmp" > /dev/null 2>&1
+
+    mktemp --suffix="${1}" -p "${ROOTDIR}/var/tmp"
+}
+
 findTestMethodsOnFile ()
 {
     grep -E '^test[a-zA-Z0-9_]+ *\(\) *(\{?$|\{)' "${1}" | grep -Eo '^test[a-zA-Z0-9_]+'
+}
+
+defineStyle ()
+{
+    style_reset=`tput sgr0 2>/dev/null || echo ''`
+    style_bold=`tput bold 2>/dev/null || echo ''`
+
+    style_green=`getStyleColorById 10`
+    style_red=`getStyleColorById 9`
+
+    style_success="${style_bold}${style_green}"
+    style_failure="${style_bold}${style_red}"
+}
+
+getStyleColorById ()
+{
+    tput setaf ${1} 2>/dev/null || echo ''
+}
+
+installPackage ()
+{
+    installPackage_packagedir="${1}"
+    installPackage_packageRepositoryUrl="${2}"
+    installPackage_packageCommit=${3}
+
+    test -d "${installPackage_packagedir}" || {
+        {
+            git clone \
+                --single-branch \
+                "${installPackage_packageRepositoryUrl}" \
+                "${installPackage_packagedir}"
+
+            git \
+                --work-tree="${installPackage_packagedir}" \
+                --git-dir="${installPackage_packagedir}/.git" \
+                reset --hard \
+                "${installPackage_packageCommit}" --
+        } || {
+            rm -rf "${installPackage_packagedir}"
+
+            exit 1
+        }
+    }
 }
 
 main ${1+"$@"}
