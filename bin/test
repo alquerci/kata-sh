@@ -109,7 +109,23 @@ executeTestCase ()
 
 printTestCaseSuccess ()
 {
+    if test 1 -gt "${p_maxColumns-0}"; then
+        p_maxColumns=`getTerminalColumns`
+
+        if test "${p_maxColumns}" -gt 80; then
+            p_maxColumns=80
+        else :; fi
+    else :; fi
+
     echo -n .
+
+    printTestCaseSuccess_counter=`expr 1 \+ "${printTestCaseSuccess_counter-0}"`
+
+    if test "${p_maxColumns}" -eq "${printTestCaseSuccess_counter}"; then
+        printTestCaseSuccess_counter=0
+
+        echo
+    else :; fi
 }
 
 printTestCaseFailure ()
@@ -187,6 +203,11 @@ defineStyle ()
 getStyleColorById ()
 {
     tput setaf ${1} 2>/dev/null || echo ''
+}
+
+getTerminalColumns ()
+{
+    tput cols || echo 80
 }
 
 installPackage ()
