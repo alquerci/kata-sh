@@ -2,7 +2,9 @@
 
 MEDIR=`dirname "$0"`
 ROOTDIR=`realpath "${MEDIR}/.."`
-VENDORDIR="${ROOTDIR}/var/vendor"
+VARDIR="${ROOTDIR}/var"
+VENDORDIR="${VARDIR}/vendor"
+TEMPDIR="${VARDIR}/tmp"
 
 main ()
 {
@@ -171,16 +173,16 @@ makeTestEnv ()
 
 makeTempDirForTestFileName ()
 {
-    mkdir -p "${ROOTDIR}/var/tmp" > /dev/null 2>&1
+    mkdir -p "${TEMPDIR}" > /dev/null 2>&1
 
-    mktemp -d --suffix="${1}" -p "${ROOTDIR}/var/tmp"
+    mktemp -d --suffix="${1}" -p "${TEMPDIR}"
 }
 
 makeTempFileForTestFileName ()
 {
-    mkdir -p "${ROOTDIR}/var/tmp" > /dev/null 2>&1
+    mkdir -p "${TEMPDIR}" > /dev/null 2>&1
 
-    mktemp --suffix="${1}" -p "${ROOTDIR}/var/tmp"
+    mktemp --suffix="${1}" -p "${TEMPDIR}"
 }
 
 findTestMethodsOnFile ()
