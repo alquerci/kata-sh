@@ -175,14 +175,14 @@ makeTempDirForTestFileName ()
 {
     mkdir -p "${TEMPDIR}" > /dev/null 2>&1
 
-    mktemp -d --suffix="${1}" -p "${TEMPDIR}"
+    mktemp -d -p "${TEMPDIR}" "${1}.XXXXXXXX"
 }
 
 makeTempFileForTestFileName ()
 {
     mkdir -p "${TEMPDIR}" > /dev/null 2>&1
 
-    mktemp --suffix="${1}" -p "${TEMPDIR}"
+    mktemp -p "${TEMPDIR}" "${1}.XXXXXXXX"
 }
 
 findTestMethodsOnFile ()
@@ -209,7 +209,7 @@ getStyleColorById ()
 
 getTerminalColumns ()
 {
-    tput cols || echo 80
+    tput cols 2>/dev/null || echo 80
 }
 
 installPackage ()
