@@ -5,17 +5,27 @@ ROOTDIR=`realpath "${MEDIR}/.."`
 VARDIR="${ROOTDIR}/var"
 VENDORDIR="${VARDIR}/vendor"
 TEMPDIR="${VARDIR}/tmp"
+TARGET_DIR="${ROOTDIR}/src"
 
 main ()
 {
     installTestFramework
 
-    runTests
+    if test x"" = x"${1-}"; then
+        runTests
+    elif test -f "${1}"; then
+        testpath=`realpath "${1}"`
+        runTestFile "${testpath}"
+    elif test -d "${1}"; then
+        testpath=`realpath "${1}"`
+        TARGET_DIR="${testpath}"
+        runTests "${testpath}"
+    fi
 }
 
 findTestFiles ()
 {
-    find "${ROOTDIR}/src" -wholename '*/Tests/*' -name '*Test.sh'
+    find "${TARGET_DIR}" -path '*/Tests/*' -name '*Test.sh'
 }
 
 installTestFramework ()
@@ -37,6 +47,16 @@ runTests ()
     printFooter
 }
 
+runTestFile ()
+{
+    defineStyle
+    printHeader
+
+    runOneTestFile "${1}"
+
+    printFooter
+}
+
 printHeader ()
 {
     cat <<EOF
@@ -47,12 +67,41 @@ EOF
 
 runAllTests ()
 {
-    findTestFiles | while read filepath; do
-        for testMethod in `findTestMethodsOnFile "${filepath}"`
-        do
-            runTestFileForMethod "${filepath}" "${testMethod}"
-        done
+    z_testFiles=`findTestFiles`
+
+    while consumeList
+    do
+        runOneTestFile "${z_current}"
     done
+}
+
+runOneTestFile ()
+{
+    for testMethod in `findTestMethodsOnFile "${1}"`
+    do
+        runTestFileForMethod "${1}" "${testMethod}"
+    done
+}
+
+consumeList ()
+{
+    if test x"" = x"${z_testFiles}"; then
+        return 1
+    else
+        consumeList_done=0
+    fi
+
+    z_current=`echoTestFiles | head -n 1`
+    z_testFiles=`echoTestFiles | tail -n +2 2>/dev/null || echo ''`
+
+    return ${consumeList_done}
+}
+
+echoTestFiles ()
+{
+    cat <<EOF
+${z_testFiles}
+EOF
 }
 
 printFooter ()
@@ -68,7 +117,7 @@ EOF
 runTestFileForMethod ()
 {
     r_filepath=${1}
-    r_filename=`basename ${1}`
+    r_filename=`basename "${1}"`
     r_method="${2}"
 
     makeTestEnv "${r_filepath}"
@@ -98,7 +147,7 @@ runTestFileForMethod_removeTempFiles ()
 
 executeTestCase ()
 {
-    e_filename=`basename ${1}`
+    e_filename=`basename "${1}"`
     e_method="${2}"
     e_output="${3}"
 
@@ -119,7 +168,7 @@ printTestCaseSuccess ()
         else :; fi
     else :; fi
 
-    echo -n .
+    echoWithoutNewLine .
 
     printTestCaseSuccess_counter=`expr 1 \+ "${printTestCaseSuccess_counter-0}"`
 
@@ -154,19 +203,25 @@ printTestCaseFailureReport ()
 
 printTestCaseFailureProgress ()
 {
-    echo -n "${style_failure}F${style_reset}"
+    echoWithoutNewLine "${style_failure}F${style_reset}"
 }
 
 makeTestEnv ()
 {
-    m_filename=`basename ${1}`
-    m_directory=`dirname ${1}`
+    m_filename=`basename "${1}"`
+    m_directory=`dirname "${1}"`
 
     export SHUNIT2="${VENDORDIR}/shunit2/shunit2"
 
     export TMPDIR=`makeTempDirForTestFileName "${m_filename}"`
+    if test x"" = x"${TMPDIR}"; then
+        echo >&2 "Failed to make temporary directory for ${m_filename}"
+
+        return 1
+    else :; fi
 
     export ROOTDIR
+    export PATH="${ROOTDIR}/awf/bin:${PATH}"
 
     cd "${m_directory}"
 }
@@ -175,14 +230,14 @@ makeTempDirForTestFileName ()
 {
     mkdir -p "${TEMPDIR}" > /dev/null 2>&1
 
-    mktemp -d -p "${TEMPDIR}" "${1}.XXXXXXXX"
+    mktemp -d "${TEMPDIR}/${1}.XXXXXXXX"
 }
 
 makeTempFileForTestFileName ()
 {
     mkdir -p "${TEMPDIR}" > /dev/null 2>&1
 
-    mktemp -p "${TEMPDIR}" "${1}.XXXXXXXX"
+    mktemp "${TEMPDIR}/${1}.XXXXXXXX"
 }
 
 findTestMethodsOnFile ()
@@ -236,6 +291,11 @@ installPackage ()
             exit 1
         }
     }
+}
+
+echoWithoutNewLine ()
+{
+    printf '%s' "${1}"
 }
 
 main ${1+"$@"}
